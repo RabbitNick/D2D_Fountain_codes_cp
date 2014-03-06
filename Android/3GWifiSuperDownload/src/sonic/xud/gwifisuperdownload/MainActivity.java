@@ -1,8 +1,14 @@
 package sonic.xud.gwifisuperdownload;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Enumeration;
@@ -15,6 +21,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.util.EntityUtils;
 
+import sonic.xud.assistclass.FinalDataSource;
 import sonic.xud.assistclass.IPv4Util;
 import sonic.xud.assistclass.MyHttpClient;
 
@@ -25,6 +32,7 @@ import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.R.bool;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -100,10 +108,10 @@ public class MainActivity extends Activity implements OnClickListener{
 			WifiInfo wifiInfo = wifiManager.getConnectionInfo();
 			String ssid = wifiInfo.getSSID();
 			int ip = wifiInfo.getIpAddress();
-			Log.d(TAG_LOG, "wifi ip：" + ip);
+			Log.d(TAG_LOG, "wifi ip before change：" + ip);
 			String ipString = IPv4Util.intToIp(ip);
 			Log.d(TAG_LOG, "wifi ip：" + ipString);
-			String state = "wifi连接" + "\n" + ssid + "\n" + ipString;
+			String state = "wifi已连接" + "\n" + ssid + "\n" + ipString;
 			wifiStateView.setText(state);
 		}
 		
@@ -125,8 +133,15 @@ public class MainActivity extends Activity implements OnClickListener{
 				
 				public void run() {
 					// TODO Auto-generated method stub
-					forceMobileConnectionForAddress(context, "http://www.taobao.com");
-					Post("http://www.taobao.com", null);
+					forceMobileConnectionForAddress(context, "218.193.131.2");
+//					Post("http://www.taobao.com", null);
+					new Thread(new Runnable() {
+						
+						public void run() {
+							// TODO Auto-generated method stub
+							client();
+						}
+					}).start();
 				}
 			}).start();
 		}
@@ -361,6 +376,39 @@ public class MainActivity extends Activity implements OnClickListener{
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	private boolean client(){
+		Socket socket = null;
+		DataInputStream br = null;
+		DataOutputStream pw = null;
+		try {
+			socket = new Socket(FinalDataSource.getDataserverip(),FinalDataSource.getDataport());
+			System.out.println("Data Socket=" + socket);
+			br = new DataInputStream(new BufferedInputStream(socket.getInputStream())); 
+			pw = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+			String filename = br.readUTF();
+			long length = br.readLong();
+			System.out.println("Data服务器发送的文件名："+filename);
+			System.out.println("文件的长度："+length);
+			if(!filename.equals("") && length>0){
+				return true;
+			}
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		}finally{
+			try {
+				System.out.println("close......");
+				br.close();
+				pw.close();
+				socket.close();
+			} catch (Exception e2) {
+				// TODO: handle exception
+				e2.printStackTrace();
+			}
+		}
+		return false;
 	}
 
  

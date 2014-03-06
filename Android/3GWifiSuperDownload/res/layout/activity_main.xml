@@ -23,6 +23,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:singleLine="false"
+            android:maxLines="5"
             android:text="暂无"
             android:textSize="20sp" />
     </LinearLayout>

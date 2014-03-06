@@ -102,10 +102,17 @@ public class IPv4Util {
 	 * @return String
 	 */
 	public static String intToIp(int ipInt) {
-		return new StringBuilder().append(((ipInt >> 24) & 0xff)).append('.')
-				.append((ipInt >> 16) & 0xff).append('.')
-				.append((ipInt >> 8) & 0xff).append('.').append((ipInt & 0xff))
-				.toString();
+		if(ipInt < 0){
+			return new StringBuilder().append(((ipInt >> 24) & 0xff)).append('.')
+					.append((ipInt >> 16) & 0xff).append('.')
+					.append((ipInt >> 8) & 0xff).append('.').append((ipInt & 0xff))
+					.toString();
+		}else{
+			return new StringBuilder().append((ipInt & 0xff)).append('.')
+					.append((ipInt >> 8) & 0xff).append('.')
+					.append((ipInt >> 16) & 0xff).append('.').append(((ipInt >> 24) & 0xff))
+					.toString();
+		}	
 	}
 
 	/**
