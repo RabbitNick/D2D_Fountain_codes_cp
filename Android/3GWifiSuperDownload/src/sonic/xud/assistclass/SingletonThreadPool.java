@@ -18,7 +18,7 @@ public class SingletonThreadPool {
 			synchronized (SingletonThreadPool.class) {
 				if(threadPool == null){
 					BlockingQueue<Runnable> bqueue = new ArrayBlockingQueue<Runnable>(20);
-					threadPool = new ThreadPoolExecutor(2, 3, 2,
+					threadPool = new ThreadPoolExecutor(5, 5, 1000,
 							TimeUnit.MILLISECONDS, bqueue);
 				}
 			}

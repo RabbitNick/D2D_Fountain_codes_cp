@@ -1,17 +1,18 @@
 package sonic.xud.gwifisuperdownload;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.net.Socket;
+import java.io.FileWriter;
+import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 
-import sonic.xud.assistclass.FinalDataSource;
+import sonic.xud.assistclass.MobileIp;
+import sonic.xud.assistclass.Signal;
+import sonic.xud.assistclass.TransmitHandler;
 
 import android.app.Activity;
 import android.content.Context;
-import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -26,31 +27,44 @@ public class AssistActivity extends Activity {
 
 	private Context context;
 	private Button beginButton;
-	private ProgressBar downloadBar,transBar;
-	private TextView downloadSpeedView,transSpeedView;
-	private static File path = Environment.getExternalStorageDirectory();
-	private static String AssistPath = path.getPath() + File.separator
-			+ "superdown" + File.separator + "assist/";
+	private ProgressBar downloadBar, transBar;
+	private TextView downloadSpeedView, transSpeedView;
 
-	private Socket transSocket = null;
-	private DataInputStream transBr = null;
-	private DataOutputStream transPw = null;
-	
-	private static String TAG_LOG = "AssistActivity";
-	
-	private Handler handler = new Handler(){
+	private HashMap<Long, Long> speedMap = new LinkedHashMap<Long, Long>();
+	private long priorTime = 0, currentTime = 0;
+
+	// private static String TAG_LOG = "AssistActivity";
+
+	private Handler handler = new Handler() {
 
 		@Override
 		public void handleMessage(Message msg) {
-			Bundle data = (Bundle)msg.obj;
-			long speed = data.getLong("speed");
-			System.out.println("文件接收了" + speed + "%\n");
-			downloadBar.setVisibility(View.VISIBLE);
-			transBar.setVisibility(View.VISIBLE);
-			downloadBar.setProgress((int)speed);
-			transBar.setProgress((int)speed);
+			currentTime = System.currentTimeMillis();
+			Bundle data = (Bundle) msg.obj;
+			long size = data.getLong("size");
+			long speed = 1000*size/(currentTime-priorTime);
+			speedMap.put(currentTime, speed);
+			downloadSpeedView.setText(String.valueOf(speed));
+			transSpeedView.setText(String.valueOf(speed));
+			priorTime = currentTime;
 		}
 	};
+
+	// 一次性写入文件
+	private void write(HashMap<Long, Long> value) {
+		try {
+			File file = new File(Signal.speedPath + "assistspeed.txt");
+			// 采用覆盖的方式写入
+			FileWriter fileWriter = new FileWriter(file, false);
+			fileWriter.write(value.toString());
+			fileWriter.flush();
+			fileWriter.close();
+			value.clear();
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		}
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -62,15 +76,19 @@ public class AssistActivity extends Activity {
 
 	private void init() {
 		context = AssistActivity.this;
-		File file = new File(AssistPath);
+		File file = new File(Signal.AssistPath);
 		if (!file.exists()) {
 			file.mkdirs();
 		}
-		downloadBar = (ProgressBar)findViewById(R.id.downloadbar);
-		transBar = (ProgressBar)findViewById(R.id.transbar);
-		downloadSpeedView = (TextView)findViewById(R.id.downloadspeed);
-		transSpeedView = (TextView)findViewById(R.id.transmitspeed);
-		
+		File file2 = new File(Signal.speedPath);
+		if (!file2.exists()) {
+			file2.mkdirs();
+		}
+		downloadBar = (ProgressBar) findViewById(R.id.downloadbar);
+		transBar = (ProgressBar) findViewById(R.id.transbar);
+		downloadSpeedView = (TextView) findViewById(R.id.downloadspeed);
+		transSpeedView = (TextView) findViewById(R.id.transmitspeed);
+
 		beginButton = (Button) findViewById(R.id.beginBtn);
 		beginButton.setOnClickListener(new OnClickListener() {
 
@@ -80,101 +98,38 @@ public class AssistActivity extends Activity {
 
 					public void run() {
 						// TODO Auto-generated method stub
-						try {
-							transSocket = new Socket(FinalDataSource.getSponsorip(), FinalDataSource.getSPONSORPORT());
-							System.out.println("转发连接建立Socket=" + transSocket);
-							transBr = new DataInputStream(new BufferedInputStream(
-									transSocket.getInputStream()));
-							transPw = new DataOutputStream(new BufferedOutputStream(
-									transSocket.getOutputStream()));
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-						dataRequestClient();
+						priorTime = System.currentTimeMillis();
+						currentTime = System.currentTimeMillis();
+						service();
 					}
 				}).start();
 			}
 		});
 	}
 
-	private void dataRequestClient() {
-		Socket socket = null;
-		DataInputStream br = null;
-		DataOutputStream pw = null;
+	@Override
+	protected void onStop() {
+		// TODO Auto-generated method stub
+		super.onStop();
+		write(speedMap);
+	}
+
+	// 开启转发服务
+	private void service() {
 		try {
-			socket = new Socket(FinalDataSource.getDataserverip(),
-					FinalDataSource.getDataport());
-			System.out.println("Data Socket=" + socket);
-			br = new DataInputStream(new BufferedInputStream(
-					socket.getInputStream()));
-			pw = new DataOutputStream(new BufferedOutputStream(
-					socket.getOutputStream()));
-			String filename = br.readUTF();
-			long length = br.readLong();
-			System.out.println("Data服务器发送的文件名：" + filename);
-			System.out.println("文件的长度：" + length);
-			
-			transPw.writeUTF(filename);
-			transPw.writeLong(length);
-
-			int bufferSize = 8192;
-			byte[] buf = new byte[bufferSize];
-			int passedlen = 0;
-
-			while (true) {
-				forceMobileConnection();
-				int read = 0;
-				if (br != null) {
-					read = br.read(buf);
-				}
-				passedlen += read;
-				if (read == -1) {
-					transPw.flush();
-					System.out.println("文件转发完成\n");
-					break;
-				}
-				long speed = passedlen * 100 / length;
-				Message message = new Message();
-				Bundle bundle = new Bundle();
-				bundle.putLong("speed", speed);
-				message.obj = bundle;
-				handler.sendMessage(message);		
-				// 转发文件流
-				transPw.write(buf,0,read);
-			}
+			InetSocketAddress inAddress = new InetSocketAddress(
+					MobileIp.gprsIp(context), 8001);
+			DatagramSocket insoSocket = new DatagramSocket(inAddress);
+			System.err.println("数据下载udp监听开启： " + insoSocket);
+			InetSocketAddress outAddress = new InetSocketAddress(
+					MobileIp.wifiIp(context), 8001);
+			DatagramSocket outSocket = new DatagramSocket(outAddress);
+			System.err.println("数据转发udp监听开启： " + insoSocket);
+			TransmitHandler transmitHandler = new TransmitHandler(insoSocket,
+					outSocket, handler, context);
 		} catch (Exception e) {
 			// TODO: handle exception
-			e.printStackTrace();
-		} finally {
-			try {
-				System.out.println("close......");
-				br.close();
-				pw.close();
-				socket.close();
-			} catch (Exception e2) {
-				// TODO: handle exception
-				e2.printStackTrace();
-			}
 		}
-		return;
-	}
-	
-	private boolean forceMobileConnection(){
-		ConnectivityManager connectivityManager = (ConnectivityManager) context
-				.getSystemService(Context.CONNECTIVITY_SERVICE);
-		if (null == connectivityManager) {
-			return false;
-		}
-		int resultInt = connectivityManager.startUsingNetworkFeature(
-				ConnectivityManager.TYPE_MOBILE, "enableHIPRI");
-	
-		if (-1 == resultInt) {
-			return false;
-		}
-		if (0 == resultInt) {
-			return true;
-		}
-		return true;
-	}
 
+	}
 }

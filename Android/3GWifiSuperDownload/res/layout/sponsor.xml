@@ -21,7 +21,6 @@
                 android:layout_height="wrap_content"
                 android:text="数据接收"
                 android:textSize="20sp" />
-            
         </LinearLayout>
 
         <LinearLayout
@@ -43,6 +42,30 @@
         android:id="@+id/beginBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="开始协作下载" />
+        android:text="开始下载" />
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal" >
+
+        <TextView
+            android:id="@+id/countAssist"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="当前协助手机数量： "
+            android:textSize="20sp" />
+        
+        <TextView
+            android:id="@+id/count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:textSize="20sp" 
+            android:textColor="#FF0000"/>
+        
+    </LinearLayout>
 
 </LinearLayout>

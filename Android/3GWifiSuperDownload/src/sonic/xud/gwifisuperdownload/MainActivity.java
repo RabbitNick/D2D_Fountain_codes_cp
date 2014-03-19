@@ -1,38 +1,23 @@
 package sonic.xud.gwifisuperdownload;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.File;
+import java.io.FileWriter;
 import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.Enumeration;
-import java.util.List;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.util.EntityUtils;
-
-import sonic.xud.assistclass.FinalDataSource;
 import sonic.xud.assistclass.IPv4Util;
-import sonic.xud.assistclass.MyHttpClient;
+import sonic.xud.assistclass.MobileIp;
 
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo.State;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
-import android.R.bool;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -44,66 +29,88 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-public class MainActivity extends Activity implements OnClickListener{
+public class MainActivity extends Activity implements OnClickListener {
 
 	private Context context;
-	private Button activateBtn,sponsorBtn,assistBtn;
-	private TextView wifiStateView,mobileStateView,testView;
+	private Button activateBtn, sponsorBtn, assistBtn;
+	private TextView wifiStateView, mobileStateView, testView;
 	private LinearLayout testLayout;
-	
+
 	private final String TAG_LOG = "MobileConnect";
 	private final int MOBILE = 1;
 	private final int TESTRESULT = 2;
+	private final int SPEED = 3;
 	private WifiManager wifiManager;
-	
+
+	private static File path = Environment.getExternalStorageDirectory();
+	private static String AbsolutePath = path.getPath() + File.separator
+			+ "superdown" + File.separator;
+	private static String AssistPath = AbsolutePath + "assist/";
+	private static String speedPath = AbsolutePath + "speed/";
+
+	private HashMap<Long, Long> speedMap = new LinkedHashMap<Long, Long>();
+
 	private Handler handler = new Handler() {
 
 		@Override
 		public void handleMessage(Message msg) {
 			// TODO Auto-generated method stub
-			if(msg.what == MOBILE){
+			if (msg.what == MOBILE) {
 				String mobileIp = (String) msg.obj;
-				mobileStateView.setText("3G已连接\n"+mobileIp);
-			}else if(msg.what == TESTRESULT){
-				String test = (String)msg.obj;
-				if(test.equals("success")){
+				if(mobileIp != null){
+					mobileStateView.setText("3G已连接\n" + mobileIp);
 					testLayout.setVisibility(View.VISIBLE);
 					testView.setText("一切正常");
 				}else{
+					testLayout.setVisibility(View.VISIBLE);
 					testView.setText("出现问题，请先检查");
-				}		
-			}		
+				}
+				
+			}else if (msg.what == SPEED) {
+				Bundle data = (Bundle) msg.obj;
+				long count = data.getLong("count");
+				long timePoint = System.currentTimeMillis();
+				speedMap.put(timePoint, count);
+			}
 		}
 	};
-	
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        context = MainActivity.this;
-        
-        initView();
-    } 
-    
-    private void initView(){
-    	wifiStateView = (TextView)findViewById(R.id.wifiState);
-    	mobileStateView = (TextView)findViewById(R.id.mobileState);
-    	testView = (TextView)findViewById(R.id.testState);
-    	testLayout = (LinearLayout)findViewById(R.id.testLayout);
-    	testLayout.setVisibility(View.GONE);
-    	
-    	sponsorBtn = (Button)findViewById(R.id.sponsorBtn);
-    	assistBtn = (Button)findViewById(R.id.assistBtn);
-    	activateBtn = (Button)findViewById(R.id.activateBtn);
-    	
-    	activateBtn.setOnClickListener(this);
-    	sponsorBtn.setOnClickListener(this);
-    	assistBtn.setOnClickListener(this);
-    	
-    	/*判断wifi的连接状态*/
-    	wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_main);
+		context = MainActivity.this;
+
+		initView();
+	}
+
+	private void initView() {
+		File file = new File(AssistPath);
+		if (!file.exists()) {
+			file.mkdirs();
+		}
+		File file2 = new File(speedPath);
+		if (!file2.exists()) {
+			file2.mkdirs();
+		}
+		wifiStateView = (TextView) findViewById(R.id.wifiState);
+		mobileStateView = (TextView) findViewById(R.id.mobileState);
+		testView = (TextView) findViewById(R.id.testState);
+		testLayout = (LinearLayout) findViewById(R.id.testLayout);
+		testLayout.setVisibility(View.GONE);
+
+		sponsorBtn = (Button) findViewById(R.id.sponsorBtn);
+		assistBtn = (Button) findViewById(R.id.assistBtn);
+		activateBtn = (Button) findViewById(R.id.activateBtn);
+
+		activateBtn.setOnClickListener(this);
+		sponsorBtn.setOnClickListener(this);
+		assistBtn.setOnClickListener(this);
+
+		/* 判断wifi的连接状态 */
+		wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 		if (!wifiManager.isWifiEnabled()) {
-			wifiStateView.setText("wifi未连接");
+			wifiStateView.setText("wifi未开启");
 		} else {
 			WifiInfo wifiInfo = wifiManager.getConnectionInfo();
 			String ssid = wifiInfo.getSSID();
@@ -114,44 +121,59 @@ public class MainActivity extends Activity implements OnClickListener{
 			String state = "wifi已连接" + "\n" + ssid + "\n" + ipString;
 			wifiStateView.setText(state);
 		}
-		
-		/*3G mobile连接状态判断*/
-		String mobileIp = getIP();
-		if(mobileIp.equals("")){
-			mobileStateView.setText("3G未连接");
-		}else{
-			mobileStateView.setText("3G连接"+"\n"+mobileIp);
-		}
-    }
 
-    public void onClick(View v) {
+		/* 3G mobile连接状态判断 */
+		String mobileIp = MobileIp.gprsIp(context);
+		if (mobileIp == null) {
+			mobileStateView.setText("3G未开启");
+		} else {
+			mobileStateView.setText("3G已连接" + "\n" + mobileIp);
+		}
+	}
+
+	// 一次性写入文件
+	private void write(HashMap<Long, Long> value) {
+		try {
+			File file = new File(speedPath + "downloadspeed.txt");
+			// 采用覆盖的方式写入
+			FileWriter fileWriter = new FileWriter(file, false);
+			fileWriter.write(value.toString());
+			fileWriter.flush();
+			fileWriter.close();
+			value.clear();
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	protected void onStop() {
+		// TODO Auto-generated method stub
+		super.onStop();
+		write(speedMap);
+	}
+
+	public void onClick(View v) {
 		// TODO Auto-generated method stub
 		switch (v.getId()) {
-		case R.id.activateBtn:
-		{
+		case R.id.activateBtn: {
 			new Thread(new Runnable() {
-				
+
 				public void run() {
-					// TODO Auto-generated method stub
-					forceMobileConnectionForAddress(context, "218.193.131.2");
-//					Post("http://www.taobao.com", null);
-					new Thread(new Runnable() {
-						
-						public void run() {
-							// TODO Auto-generated method stub
-							client();
-						}
-					}).start();
+					//强制启动mobile 连接
+					forceMobileConnectionForAddress(context,"218.193.131.2:8001");
 				}
 			}).start();
 		}
 			break;
 		case R.id.sponsorBtn:
-			Intent intent1 = new Intent(MainActivity.this,SponsorActivity.class);
+			Intent intent1 = new Intent(MainActivity.this,
+					SponsorActivity.class);
 			startActivity(intent1);
 			break;
 		case R.id.assistBtn:
-			Intent intent2 = new Intent(MainActivity.this,AssistActivity.class);
+			Intent intent2 = new Intent(MainActivity.this, AssistActivity.class);
 			startActivity(intent2);
 			break;
 
@@ -159,39 +181,8 @@ public class MainActivity extends Activity implements OnClickListener{
 			break;
 		}
 	}
-    
-    private String getIP() {
-		String IP = null;
-		StringBuilder IPStringBuilder = new StringBuilder();
-		try {
-			Enumeration<NetworkInterface> networkInterfaceEnumeration = NetworkInterface
-					.getNetworkInterfaces();
-			while (networkInterfaceEnumeration.hasMoreElements()) {
-				NetworkInterface networkInterface = networkInterfaceEnumeration
-						.nextElement();
-				Enumeration<InetAddress> inetAddressEnumeration = networkInterface
-						.getInetAddresses();
-				while (inetAddressEnumeration.hasMoreElements()) {
-					InetAddress inetAddress = inetAddressEnumeration
-							.nextElement();
-					if (!inetAddress.isLoopbackAddress()
-							&& !inetAddress.isLinkLocalAddress()
-							&& inetAddress.isSiteLocalAddress()) {
-						IPStringBuilder.append(inetAddress.getHostAddress()
-								.toString() + "\n");
-					}
-				}
-			}
-		} catch (SocketException ex) {
 
-		}
-		IP = IPStringBuilder.toString();
-		System.out.println("Mobile ip：" + IP);
-		Log.d(TAG_LOG, "Mobile ip：" + IP);
-		return IP;
-	}
-
-    private boolean forceMobileConnectionForAddress(Context context,
+	private boolean forceMobileConnectionForAddress(Context context,
 			String address) {
 		Log.d(TAG_LOG, "Begin force");
 		ConnectivityManager connectivityManager = (ConnectivityManager) context
@@ -232,7 +223,7 @@ public class MainActivity extends Activity implements OnClickListener{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			String mobileIp = getIP();
+			String mobileIp = MobileIp.gprsIp(context);
 			Message msg = new Message();
 			msg.what = MOBILE;
 			msg.obj = mobileIp;
@@ -278,7 +269,9 @@ public class MainActivity extends Activity implements OnClickListener{
 
 	/**
 	 * This method extracts from address the hostname
-	 * @param url eg. http://some.where.com:8080/sync
+	 * 
+	 * @param url
+	 *            eg. http://some.where.com:8080/sync
 	 * @return some.where.com
 	 */
 	public static String extractAddressFromUrl(String url) {
@@ -337,79 +330,5 @@ public class MainActivity extends Activity implements OnClickListener{
 				| ((addrBytes[1] & 0xff) << 8) | (addrBytes[0] & 0xff);
 		return addr;
 	}
-	
-	/* http请求 */
-	private void Post(final String url, final List<NameValuePair> params) {
-		Log.d(TAG_LOG, "Begin Http Test....");
-		HttpPost httpRequest = new HttpPost(url);
-		HttpClient httpClient = MyHttpClient.getHttpClient();
-		String strResult = "doPostError";
-		try {
-			/* 添加请求参数到请求对象 */
-			// httpRequest.setEntity(new UrlEncodedFormEntity(params,
-			// HTTP.UTF_8));
-			/* 发送请求并等待响应 */
-			HttpResponse httpResponse = httpClient.execute(httpRequest);
 
-			int i = httpResponse.getStatusLine().getStatusCode();
-			Log.d(TAG_LOG, "Http Test: " + String.valueOf(i));
-
-			if (i == 200) {
-				System.out.println("开始解析JSON数据");
-				String Result = EntityUtils.toString(httpResponse.getEntity());
-				Log.d(TAG_LOG, "Http Test catResult: " + Result);
-				Message msg = new Message();
-				msg.what = TESTRESULT;
-				msg.obj = "success";
-				handler.sendMessage(msg);
-			} else {
-				strResult = "Error Response: "
-						+ httpResponse.getStatusLine().toString();
-				Log.d(TAG_LOG, "Http Test catResult error info: " + strResult);
-			}
-		} catch (ClientProtocolException e) {
-			strResult = e.getMessage().toString();
-			e.printStackTrace();
-		} catch (IOException e) {
-			strResult = e.getMessage().toString();
-			e.printStackTrace();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-	
-	private boolean client(){
-		Socket socket = null;
-		DataInputStream br = null;
-		DataOutputStream pw = null;
-		try {
-			socket = new Socket(FinalDataSource.getDataserverip(),FinalDataSource.getDataport());
-			System.out.println("Data Socket=" + socket);
-			br = new DataInputStream(new BufferedInputStream(socket.getInputStream())); 
-			pw = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
-			String filename = br.readUTF();
-			long length = br.readLong();
-			System.out.println("Data服务器发送的文件名："+filename);
-			System.out.println("文件的长度："+length);
-			if(!filename.equals("") && length>0){
-				return true;
-			}
-		} catch (Exception e) {
-			// TODO: handle exception
-			e.printStackTrace();
-		}finally{
-			try {
-				System.out.println("close......");
-				br.close();
-				pw.close();
-				socket.close();
-			} catch (Exception e2) {
-				// TODO: handle exception
-				e2.printStackTrace();
-			}
-		}
-		return false;
-	}
-
- 
 }

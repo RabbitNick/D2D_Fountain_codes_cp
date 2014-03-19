@@ -28,26 +28,26 @@
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone" />
-            
-            <LinearLayout 
+
+            <LinearLayout
                 android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal" >
-            
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" >
+
                 <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="传输速率(Bps):"
-                android:textSize="15sp" />
-                
-                <TextView android:id="@+id/downloadspeed"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="18sp" 
-                android:text="0"
-                android:textColor="#FF0000"/>
-                
-                </LinearLayout>
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="传输速率(Bps):"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/downloadspeed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="#FF0000"
+                    android:textSize="18sp" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
@@ -69,26 +69,26 @@
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone" />
-            
-            <LinearLayout 
+
+            <LinearLayout
                 android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal" >
-            
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" >
+
                 <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="传输速率(Bps):"
-                android:textSize="15sp" />
-                
-                <TextView android:id="@+id/transmitspeed"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="18sp" 
-                android:text="0"
-                android:textColor="#FF0000"/>
-                
-                </LinearLayout>
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="传输速率(Bps):"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/transmitspeed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="#FF0000"
+                    android:textSize="18sp" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 
